@@ -1,0 +1,11 @@
+.bg-gradient {
+  background: linear-gradient(135deg, #7b61ff, #8360c3);
+}
+
+.text-purple {
+  color: #6c3df4;
+}
+
+.rounded-4 {
+  border-radius: 1.5rem !important;
+}
