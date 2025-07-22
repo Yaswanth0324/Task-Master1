@@ -9,3 +9,14 @@
 .rounded-4 {
   border-radius: 1.5rem !important;
 }
+body {
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.card {
+  border-radius: 1rem;
+}
+
+.card-title {
+  font-weight: 600;
+}

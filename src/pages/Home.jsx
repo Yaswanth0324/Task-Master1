@@ -17,7 +17,7 @@ export default function Home() {
     <main className="home-hero">
       <section className="hero-content glass text-center">
         <h1 className="display-5 fw-bold">
-          Organize Your Day with <span className="brand">TaskFlow</span>
+          Organize Your Day with <span className="brand">TaskMaster</span>
         </h1>
         <p className="lead mt-3">
           Simple, fast, and smart task management with reminders.

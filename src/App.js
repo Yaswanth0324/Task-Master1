@@ -8,6 +8,7 @@ import Todo from "./pages/Todo";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./components/AuthContext";
+import 'bootstrap/dist/css/bootstrap.min.css';
 import "./App.css";
 
 function App() {

@@ -13,20 +13,24 @@ export default function Header() {
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark px-4">
-      <Link className="navbar-brand" to="/">TaskFlow</Link>
+      <Link className="navbar-brand" to="/">TaskMaster</Link>
+
       <div className="ms-auto d-flex align-items-center gap-3">
+        <Link to="/" className="btn btn-outline-light btn-sm">Home</Link>
+
         {user ? (
           <>
-            <span className="text-white">👋 {user.username}</span>
-            {profile?.image && (
+            {profile?.profileImage ? (
               <Link to="/profile">
                 <img
-                  src={profile.image}
+                  src={profile.profileImage}
                   alt="Profile"
                   className="rounded-circle"
                   style={{ width: '35px', height: '35px', objectFit: 'cover' }}
                 />
               </Link>
+            ) : (
+              <Link to="/profile" className="btn btn-outline-light btn-sm">Profile</Link>
             )}
             <button onClick={handleLogout} className="btn btn-outline-light btn-sm">Logout</button>
           </>

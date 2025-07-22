@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -10,13 +9,13 @@ export const AuthProvider = ({ children }) => {
 
   // Load profile when user changes
   useEffect(() => {
-    if (user) {
-      const savedProfile = JSON.parse(localStorage.getItem(`profile_${user.username}`));
-      setProfile(savedProfile || null);
-    } else {
-      setProfile(null);
-    }
-  }, [user]);
+  if (user) {
+    const savedProfile = JSON.parse(localStorage.getItem(`profile_${user.email}`));
+    setProfile(savedProfile || null);
+  } else {
+    setProfile(null);
+  }
+}, [user]);
 
   // Persist user session
   useEffect(() => {
@@ -50,8 +49,8 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = (data) => {
     setProfile(data);
-    if (user) {
-      localStorage.setItem(`profile_${user.username}`, JSON.stringify(data));
+    if (user?.email) {
+      localStorage.setItem(`profile_${user.email}`, JSON.stringify(data));
     }
   };
 
