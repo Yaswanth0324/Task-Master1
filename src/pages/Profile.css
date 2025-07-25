@@ -1,0 +1,9 @@
+/* Profile.css */
+
+img.img-thumbnail {
+  border-radius: 10px;
+}
+
+audio {
+  width: 100%;
+}

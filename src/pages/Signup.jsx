@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { useAuth } from '../components/AuthContext';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 export default function Signup() {
-  const { signup } = useAuth();
-  const navigate = useNavigate();
-  const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    const success = signup(form.username, form.email, form.password);
-    if (success) {
+    try {
+       await axios.post('http://localhost:5000/signup', form);
+      alert('Signup successful!');
       navigate('/login');
-    } else {
-      setError('User already exists. Try a different username/email.');
+    } catch (err) {
+      console.error(err);
+      setError('Signup failed. Maybe email already exists.');
     }
   };
 
@@ -24,19 +25,19 @@ export default function Signup() {
       <form onSubmit={handleSubmit} className="mt-3">
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="mb-3">
-          <label>Username</label>
-          <input type="text" required className="form-control" value={form.username}
-            onChange={e => setForm({ ...form, username: e.target.value })} />
+          <label>Name</label>
+          <input type="text" className="form-control" required
+            value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
         </div>
         <div className="mb-3">
           <label>Email</label>
-          <input type="email" required className="form-control" value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })} />
+          <input type="email" className="form-control" required
+            value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
         </div>
         <div className="mb-3">
           <label>Password</label>
-          <input type="password" required className="form-control" value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })} />
+          <input type="password" className="form-control" required
+            value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
         </div>
         <button type="submit" className="btn btn-primary">Sign Up</button>
       </form>

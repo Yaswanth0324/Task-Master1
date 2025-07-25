@@ -22,30 +22,54 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('currentUser', JSON.stringify(user));
   }, [user]);
 
-  const login = (username, password) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const matched = users.find(u => u.username === username && u.password === password);
-    if (matched) {
-      setUser({ username: matched.username, email: matched.email });
+  const login = async (email, password) => {
+  try {
+    const response = await fetch("http://localhost:5000/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+    if (response.ok && data.email) {
+      const userData = { email: data.email, username: data.username };
+      setUser(userData);
+      localStorage.setItem("currentUser", JSON.stringify(userData));
       return true;
     }
     return false;
-  };
+  } catch (err) {
+    console.error("Login failed:", err);
+    return false;
+  }
+};
+
 
   const logout = () => {
     setUser(null);
     setProfile(null);
   };
 
-  const signup = (username, email, password) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const alreadyExists = users.some(u => u.username === username || u.email === email);
-    if (alreadyExists) return false;
+  const signup = async (username, email, password) => {
+  try {
+    const response = await fetch("http://localhost:5000/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, email, password }),
+    });
 
-    users.push({ username, email, password });
-    localStorage.setItem('users', JSON.stringify(users));
-    return true;
-  };
+     await response.json();
+    return response.ok;
+  } catch (err) {
+    console.error("Signup failed:", err);
+    return false;
+  }
+};
+
 
   const updateProfile = (data) => {
     setProfile(data);

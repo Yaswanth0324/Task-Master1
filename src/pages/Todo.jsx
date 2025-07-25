@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../components/AuthContext";
+import SpeechSynthesis from "./SpeechSynthesis";
 import "./Todo.css";
 import {
   Container,
@@ -13,20 +14,30 @@ import {
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
+const initialTask = {
+  title: "",
+  category: "Personal",
+  dueDateTime: "",
+  reminder: false,
+  notes: "",
+  priority: "Medium Priority",
+  alarmType: "alarmSong",
+};
+
 const Todo = () => {
   const { user, profile } = useAuth();
-  const [task, setTask] = useState({
-    title: "",
-    category: "Personal",
-    dueDateTime: "",
-    reminder: "",
-    notes: "",
-    priority: "Medium Priority",
-  });
+  const [task, setTask] = useState(initialTask);
   const [tasks, setTasks] = useState([]);
-  const [audioMap, setAudioMap] = useState({});
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("date");
+  const [speechText, setSpeechText] = useState("");
+  const audioRef = useRef(null);
+  const tasksRef = useRef(tasks);
 
-  // Fetch tasks from backend
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
   useEffect(() => {
     if (user) {
       axios
@@ -39,101 +50,84 @@ const Todo = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
-      const updatedTasks = tasks.map((t) => {
-        if (!t.reminder || t.played) return t;
-        const taskTime = new Date(t.dueDateTime);
-        const reminderTime = new Date(taskTime);
-        switch (t.reminder) {
-          case "1 min before": reminderTime.setMinutes(reminderTime.getMinutes() - 1); break;
-          case "5 min before": reminderTime.setMinutes(reminderTime.getMinutes() - 5); break;
-          case "1 hour before": reminderTime.setHours(reminderTime.getHours() - 1); break;
-          default: return t;
-        }
-        if (
-          now >= reminderTime &&
-          now <= new Date(reminderTime.getTime() + 60000) &&
-          profile.alarmSong &&
-          !t.played
-        ) {
-          const audio = new Audio(profile.alarmSong);
-          audio.play();
-          setAudioMap((prev) => ({ ...prev, [t.id]: audio }));
 
-          // Mark task as played in backend
-          axios.put(`http://localhost:5000/tasks/${t.id}`, { played: true });
-          return { ...t, played: true };
+      for (const t of tasksRef.current) {
+        if (!t.reminder || t.played || !t.dueDateTime) continue;
+        const taskTime = new Date(t.dueDateTime);
+
+        if (now >= taskTime && now <= new Date(taskTime.getTime() + 60000)) {
+          if (t.alarmType === "alarmSong" && profile?.alarmSong) {
+            if (audioRef.current) audioRef.current.pause();
+            audioRef.current = new Audio(`http://localhost:5000/profile/${user.email}/alarmSong`);
+            audioRef.current.play().catch(() => console.warn("Audio play blocked"));
+          } else if (t.alarmType === "aiVoice") {
+            setSpeechText(`Reminder: You have a task titled ${t.title} that is running.`);
+          }
+
+          axios.put(`http://localhost:5000/tasks/${t.id}`, { played: true }).catch(console.error);
+
+          setTasks((prev) =>
+            prev.map((tsk) => (tsk.id === t.id ? { ...tsk, played: true } : tsk))
+          );
+
+          break;
         }
-        return t;
-      });
-      setTasks(updatedTasks);
+      }
     }, 30000);
-    return () => clearInterval(interval);
-  }, [tasks, profile, user]);
+
+    return () => {
+      clearInterval(interval);
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, [profile, user]);
+
+  const onSpeechEnd = () => setSpeechText("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const newTask = {
       ...task,
-      id: Date.now(),
-      played: false,
       user_email: user.email,
+      reminder: !!task.reminder,
+      played: false,
     };
     axios
       .post("http://localhost:5000/tasks", newTask)
-      .then(() => {
-        setTasks((prev) => [...prev, newTask]);
-        setTask({
-          title: "",
-          category: "Personal",
-          dueDateTime: "",
-          reminder: "",
-          notes: "",
-          priority: "Medium Priority",
-        });
+      .then(() => axios.get(`http://localhost:5000/tasks?email=${user.email}`))
+      .then((res) => {
+        setTasks(res.data);
+        setTask(initialTask);
       })
-      .catch((err) => console.error("Error adding task:", err));
+      .catch((err) => console.error("❌ Error adding task:", err.message));
   };
 
   const handleDelete = (id) => {
-    const audio = audioMap[id];
-    if (audio && !audio.paused) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
     axios
       .delete(`http://localhost:5000/tasks/${id}`)
-      .then(() => {
-        setTasks((prev) => prev.filter((t) => t.id !== id));
-        setAudioMap((prev) => {
-          const updated = { ...prev };
-          delete updated[id];
-          return updated;
-        });
-      })
+      .then(() => setTasks((prev) => prev.filter((t) => t.id !== id)))
       .catch((err) => console.error("Error deleting task:", err));
   };
-
-  // ... your existing JSX structure remains unchanged
-
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.played).length;
   const pendingTasks = totalTasks - completedTasks;
   const progressPercent = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
+  const searchLower = search.trim().toLowerCase();
+  let visibleTasks = tasks.filter(
+    (t) => t.title.toLowerCase().includes(searchLower) || t.notes.toLowerCase().includes(searchLower)
+  );
+  if (sort === "date") {
+    visibleTasks.sort((a, b) => new Date(a.dueDateTime) - new Date(b.dueDateTime));
+  } else if (sort === "priority") {
+    const priorities = { "High Priority": 0, "Medium Priority": 1, "Low Priority": 2 };
+    visibleTasks.sort((a, b) => priorities[a.priority] - priorities[b.priority]);
+  }
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        paddingTop: "30px",
-        paddingBottom: "60px",
-        background: "linear-gradient(to right, #6a85b6, #bac8e0)",
-      }}
-    >
+    <div style={{ minHeight: "100vh", paddingTop: 30, paddingBottom: 60, background: "linear-gradient(to right, #6a85b6, #bac8e0)" }}>
       <Container fluid="md">
         <Row>
-          {/* Left Sidebar */}
           <Col md={4}>
             <Card className="mb-4 shadow rounded-4">
               <Card.Body>
@@ -155,29 +149,7 @@ const Todo = () => {
                 <ProgressBar now={progressPercent} label={`${progressPercent}% Complete`} />
               </Card.Body>
             </Card>
-
-            <Card className="shadow rounded-4">
-              <Card.Body>
-                <Card.Title className="fw-semibold fs-5">🧭 Filters</Card.Title>
-                <div className="mt-3">
-                  <div className="mb-2"><strong>All Tasks</strong></div>
-                  <div className="form-check"><input className="form-check-input" type="checkbox" /> Active</div>
-                  <div className="form-check"><input className="form-check-input" type="checkbox" /> Completed</div>
-                  <div className="form-check"><input className="form-check-input" type="checkbox" /> Overdue</div>
-                </div>
-
-                <hr />
-                <div>
-                  <strong>Priority Filter</strong>
-                  <div className="form-check text-danger"><input className="form-check-input" type="checkbox" /> High Priority</div>
-                  <div className="form-check text-warning"><input className="form-check-input" type="checkbox" /> Medium Priority</div>
-                  <div className="form-check text-info"><input className="form-check-input" type="checkbox" /> Low Priority</div>
-                </div>
-              </Card.Body>
-            </Card>
           </Col>
-
-          {/* Right Main Area */}
           <Col md={8}>
             <Card className="mb-4 shadow rounded-4">
               <Card.Body>
@@ -185,7 +157,7 @@ const Todo = () => {
                 <Form onSubmit={handleSubmit}>
                   <Row>
                     <Col md={6}>
-                      <Form.Group className="mb-3">
+                      <Form.Group className="mb-3" controlId="task-title">
                         <Form.Label>Task Title</Form.Label>
                         <Form.Control
                           placeholder="What needs to be done?"
@@ -196,7 +168,7 @@ const Todo = () => {
                       </Form.Group>
                     </Col>
                     <Col md={3}>
-                      <Form.Group className="mb-3">
+                      <Form.Group className="mb-3" controlId="task-priority">
                         <Form.Label>Priority</Form.Label>
                         <Form.Select
                           value={task.priority}
@@ -209,7 +181,7 @@ const Todo = () => {
                       </Form.Group>
                     </Col>
                     <Col md={3}>
-                      <Form.Group className="mb-3">
+                      <Form.Group className="mb-3" controlId="task-category">
                         <Form.Label>Category</Form.Label>
                         <Form.Select
                           value={task.category}
@@ -225,32 +197,40 @@ const Todo = () => {
 
                   <Row>
                     <Col md={4}>
-                      <Form.Group className="mb-3">
-                      <Form.Label>Due Date & Time</Form.Label>
-                      <Form.Control
-                        type="datetime-local"
-                        value={task.dueDateTime}
-                        onChange={(e) => setTask({ ...task, dueDateTime: e.target.value })}
+                      <Form.Group className="mb-3" controlId="task-due">
+                        <Form.Label>Due Date & Time</Form.Label>
+                        <Form.Control
+                          type="datetime-local"
+                          value={task.dueDateTime}
+                          onChange={(e) => setTask({ ...task, dueDateTime: e.target.value })}
                         />
                       </Form.Group>
                     </Col>
                     <Col md={4}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Reminder</Form.Label>
+                      <Form.Group className="mb-3 mt-4" controlId="task-reminder">
+                        <Form.Check
+                          type="checkbox"
+                          label="Reminder"
+                          checked={task.reminder}
+                          onChange={(e) => setTask({ ...task, reminder: e.target.checked })}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-3 mt-4" controlId="task-alarmType">
+                        <Form.Label>Alarm Type</Form.Label>
                         <Form.Select
-                          value={task.reminder}
-                          onChange={(e) => setTask({ ...task, reminder: e.target.value })}
+                          value={task.alarmType}
+                          onChange={(e) => setTask({ ...task, alarmType: e.target.value })}
                         >
-                          <option value="">No reminder</option>
-                          <option>1 min before</option>
-                          <option>5 min before</option>
-                          <option>1 hour before</option>
+                          <option value="alarmSong">Alarm Song</option>
+                          <option value="aiVoice">AI Voice</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
                   </Row>
 
-                  <Form.Group className="mb-3">
+                  <Form.Group className="mb-3" controlId="task-notes">
                     <Form.Label>Notes (Optional)</Form.Label>
                     <Form.Control
                       as="textarea"
@@ -262,23 +242,31 @@ const Todo = () => {
                   </Form.Group>
 
                   <div className="d-flex justify-content-end">
-                    <Button variant="secondary" className="me-2">Reset</Button>
-                    <Button variant="primary" type="submit">+ Add Task</Button>
+                    <Button variant="secondary" className="me-2" onClick={() => setTask(initialTask)} type="button">
+                      Reset
+                    </Button>
+                    <Button variant="primary" type="submit">
+                      + Add Task
+                    </Button>
                   </div>
                 </Form>
               </Card.Body>
             </Card>
 
-            {/* Task list can be added here */}
             <div className="d-flex mb-4 bg-white p-3 rounded shadow justify-content-between align-items-center">
-              <Form.Control placeholder="Search tasks..." className="me-2" />
-              <Form.Select style={{ width: "200px" }}>
-                <option>Sort by Due Date</option>
-                <option>Sort by Priority</option>
+              <Form.Control
+                placeholder="Search tasks..."
+                className="me-2"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Form.Select style={{ width: "200px" }} value={sort} onChange={(e) => setSort(e.target.value)}>
+                <option value="date">Sort by Due Date</option>
+                <option value="priority">Sort by Priority</option>
               </Form.Select>
             </div>
 
-            {tasks.map((t) => (
+            {visibleTasks.map((t) => (
               <Card key={t.id} className="mb-3 shadow-sm rounded-4">
                 <Card.Body>
                   <Card.Title>{t.title}</Card.Title>
@@ -286,16 +274,24 @@ const Todo = () => {
                     {t.category} | {t.priority}
                   </Card.Subtitle>
                   <Card.Text>
-                    <strong>Due:</strong> {new Date(t.dueDateTime).toLocaleString()}<br />
-                    <strong>Reminder:</strong> {t.reminder || "None"}<br />
+                    <strong>Due:</strong> {t.dueDateTime ? new Date(t.dueDateTime).toLocaleString() : "No due date"}
+                    <br />
+                    <strong>Reminder:</strong> {t.reminder ? "Yes" : "No"}
+                    <br />
+                    <strong>Alarm Type:</strong> {t.alarmType === "alarmSong" ? "Alarm Song" : "AI Voice"}
+                    <br />
                     <strong>Notes:</strong> {t.notes}
                   </Card.Text>
-                  <Button variant="danger" onClick={() => handleDelete(t.id)}>Delete</Button>
+                  <Button variant="danger" onClick={() => handleDelete(t.id)}>
+                    Delete
+                  </Button>
                 </Card.Body>
               </Card>
             ))}
           </Col>
         </Row>
+
+        {speechText && <SpeechSynthesis text={speechText} onEnd={onSpeechEnd} />}
       </Container>
     </div>
   );
