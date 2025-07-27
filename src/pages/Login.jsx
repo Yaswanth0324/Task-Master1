@@ -1,41 +1,31 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext'; // ✅ Import AuthContext hook
 
 export default function Login() {
   const navigate = useNavigate();
-  const { setUser } = useAuth(); // ✅ Use setUser from context
+  const { login } = useAuth(); // ✅ Use login method from AuthContext
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
     try {
-      console.log('Submitting login form:', form);
-
-      const res = await axios.post('http://localhost:5000/login', {
-        email: form.email,
-        password: form.password
-      });
-
-      const userData = res.data;
-      console.log('Login response:', userData);
-
-      // ✅ Save user to localStorage
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-
-      // ✅ Set user in AuthContext
-      setUser(userData);
-
-      // ✅ Redirect to /todo
-      navigate('/todo');
+      const success = await login(form.email.trim(), form.password);
+      if (success) {
+        console.log("✅ Login successful");
+        navigate("/todo");
+      } else {
+        console.log("⚠️ Login failed: Invalid credentials");
+        setError("Invalid email or password.");
+      }
     } catch (err) {
-      console.error('Login error:', err.response?.data || err.message);
-      setError('Invalid email or password.');
+      console.error("❌ Login error:", err);
+      setError("Login failed. Please try again.");
     }
   };
-console.log("🧪 Sending login data:", form.email.trim().toLowerCase(), form.password);
 
   return (
     <div className="container mt-5">

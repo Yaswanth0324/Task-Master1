@@ -9,67 +9,77 @@ export const AuthProvider = ({ children }) => {
 
   // Load profile when user changes
   useEffect(() => {
-  if (user) {
-    const savedProfile = JSON.parse(localStorage.getItem(`profile_${user.email}`));
-    setProfile(savedProfile || null);
-  } else {
-    setProfile(null);
-  }
-}, [user]);
+    if (user) {
+      const savedProfile = JSON.parse(localStorage.getItem(`profile_${user.email}`));
+      setProfile(savedProfile || null);
+    } else {
+      setProfile(null);
+    }
+  }, [user]);
 
   // Persist user session
   useEffect(() => {
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    }
   }, [user]);
 
   const login = async (email, password) => {
-  try {
-    const response = await fetch("http://localhost:5000/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const response = await fetch("http://localhost:5000/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    const data = await response.json();
-    if (response.ok && data.email) {
-      const userData = { email: data.email, username: data.username };
-      setUser(userData);
-      localStorage.setItem("currentUser", JSON.stringify(userData));
-      return true;
+      const data = await response.json();
+
+      if (response.ok && data.email) {
+        const userData = {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+        };
+        setUser(userData);
+        localStorage.setItem("currentUser", JSON.stringify(userData));
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.error("Login failed:", err);
+      return false;
     }
-    return false;
-  } catch (err) {
-    console.error("Login failed:", err);
-    return false;
-  }
-};
-
+  };
 
   const logout = () => {
+    if (user?.email) {
+      localStorage.removeItem(`profile_${user.email}`);
+    }
+    localStorage.removeItem("currentUser");
     setUser(null);
     setProfile(null);
   };
 
   const signup = async (username, email, password) => {
-  try {
-    const response = await fetch("http://localhost:5000/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, email, password }),
-    });
+    try {
+      const response = await fetch("http://localhost:5000/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password }),
+      });
 
-     await response.json();
-    return response.ok;
-  } catch (err) {
-    console.error("Signup failed:", err);
-    return false;
-  }
-};
-
+      await response.json();
+      return response.ok;
+    } catch (err) {
+      console.error("Signup failed:", err);
+      return false;
+    }
+  };
 
   const updateProfile = (data) => {
     setProfile(data);

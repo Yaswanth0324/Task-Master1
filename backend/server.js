@@ -47,64 +47,118 @@ const profileSchema = new mongoose.Schema({
 });
 const Profile = mongoose.model("Profile", profileSchema);
 
-// Save profile with file uploads and names
-app.post(
-  "/save-profile",
-  upload.fields([
-    { name: "profileImage", maxCount: 1 },
-    { name: "alarmSong", maxCount: 1 },
-  ]),
-  async (req, res) => {
-    try {
-      const { email, name, mobile } = req.body;
-      const profileImage = req.files.profileImage?.[0];
-      const alarmSong = req.files.alarmSong?.[0];
+// Signup route
+app.post("/signup", (req, res) => {
+  const { name, email, password } = req.body;
 
-      let profile = await Profile.findOne({ email });
-
-      if (profile) {
-        if (profileImage) {
-          profile.profileImage = {
-            data: profileImage.buffer,
-            contentType: profileImage.mimetype,
-          };
-          profile.profileImageName = profileImage.originalname;
-        }
-        if (alarmSong) {
-          profile.alarmSong = {
-            data: alarmSong.buffer,
-            contentType: alarmSong.mimetype,
-          };
-          profile.alarmSongName = alarmSong.originalname;
-        }
-        if (name) profile.name = name;
-        if (mobile) profile.mobile = mobile;
-
-        await profile.save();
-      } else {
-        profile = new Profile({
-          email,
-          name,
-          mobile,
-          profileImage: profileImage
-            ? { data: profileImage.buffer, contentType: profileImage.mimetype }
-            : undefined,
-          profileImageName: profileImage ? profileImage.originalname : undefined,
-          alarmSong: alarmSong
-            ? { data: alarmSong.buffer, contentType: alarmSong.mimetype }
-            : undefined,
-          alarmSongName: alarmSong ? alarmSong.originalname : undefined,
-        });
-        await profile.save();
-      }
-
-      res.json({ message: "✅ Profile saved successfully" });
-    } catch (err) {
-      console.error("❌ Error saving profile:", err);
-      res.status(500).json({ error: "Internal server error" });
+  // Check if user already exists
+  db.query("SELECT * FROM users WHERE email = ?", [email], (err, results) => {
+    if (err) {
+      console.error("❌ DB error:", err);
+      return res.status(500).json({ error: "Server error" });
     }
+
+    if (results.length > 0) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    // Insert user
+    db.query(
+      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+      [name, email, password],
+      (err, result) => {
+        if (err) {
+          console.error("❌ Insert error:", err);
+          return res.status(500).json({ error: "Signup failed" });
+        }
+        res.json({ message: "✅ Signup successful" });
+      }
+    );
+  });
+});
+
+//login route
+app.post("/login", (req, res) => {
+  const { email, password } = req.body;
+  console.log("📥 Login attempt:", email, password);
+
+  db.query("SELECT * FROM users WHERE email = ?", [email], (err, results) => {
+    if (err) {
+      console.error("❌ DB error during login:", err);
+      return res.status(500).json({ error: "Server error" });
+    }
+
+    if (results.length === 0) {
+      console.log("❌ No user found with email:", email);
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const user = results[0];
+    console.log("🔍 User found in DB:", user);
+
+    if (user.password !== password) {
+      console.log("❌ Password mismatch:", password, "!==", user.password);
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    console.log("✅ Login successful for:", email);
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    });
+  });
+});
+
+
+
+// Save profile with file uploads and names
+app.post("/profile", upload.fields([
+  { name: "profileImage", maxCount: 1 },
+  { name: "alarmSong", maxCount: 1 },
+]), async (req, res) => {
+  const { email, name, mobile } = req.body;
+  const profileImageFile = req.files["profileImage"]?.[0];
+  const alarmSongFile = req.files["alarmSong"]?.[0];
+
+  try {
+    let existing = await Profile.findOne({ email });
+
+    // Build updated fields
+    const updatedFields = {
+      name,
+      mobile,
+    };
+
+    if (profileImageFile) {
+      updatedFields.profileImage = {
+        profileImageName: profileImageFile.originalname,
+        profileImageData: profileImageFile.buffer,
+      };
+    }
+
+    if (alarmSongFile) {
+      updatedFields.alarmSong = {
+        alarmSongName: alarmSongFile.originalname,
+        alarmSongData: alarmSongFile.buffer, // ✅ this line ensures the new file is saved
+      };
+    }
+
+    if (existing) {
+      await Profile.updateOne({ email }, { $set: updatedFields }); // ✅ force overwrite
+    } else {
+      await Profile.create({
+        email,
+        ...updatedFields,
+      });
+    }
+
+    res.status(200).json({ message: "Profile saved successfully" });
+  } catch (error) {
+    console.error("Error saving profile:", error);
+    res.status(500).json({ message: "Error saving profile" });
   }
-);
+});
 
 // Insert task with alarmType
 app.post("/tasks", (req, res) => {
@@ -222,6 +276,32 @@ app.get("/profile/:email/alarmSong", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+// Serve alarm song for logged-in user
+app.get("/profile/:email/alarmSong/download", async (req, res) => {
+  try {
+    const email = req.params.email;
+    const profile = await Profile.findOne({ email });
+
+    if (!profile || !profile.alarmSong || !profile.alarmSong.alarmSongData) {
+      return res.status(404).send("No alarm song found");
+    }
+
+    const filename = profile.alarmSong.alarmSongName || "alarm_song.mp3";
+
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    });
+
+    res.send(profile.alarmSong.alarmSongData.buffer);
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).send("Server error");
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
