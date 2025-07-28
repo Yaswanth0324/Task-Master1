@@ -17,11 +17,13 @@ const upload = multer({ storage });
 
 // MySQL connection
 const db = mysql.createConnection({
-  host: "localhost",
+  host: "maglev.proxy.rlwy.net",
+  port: 33371,
   user: "root",
-  password: "24YashL03@",
-  database: "taskmaster_db",
+  password: "kFQRzKdguzcVuBNFlVPOaADYvyFepnfs",
+  database: "railway",
 });
+
 
 db.connect((err) => {
   if (err) console.error("❌ MySQL connection failed:", err);

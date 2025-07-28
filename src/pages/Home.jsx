@@ -59,7 +59,7 @@ export default function Home() {
           <div className="col">
             <div className="feature-card p-4 shadow rounded bg-white h-100">
               <h3>📦 Persistent</h3>
-              <p>Your tasks stay saved locally per user. Refresh safely.</p>
+              <p>Your tasks saved in MySql databse. Refresh safely.</p>
             </div>
           </div>
           <div className="col">
