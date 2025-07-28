@@ -11,6 +11,7 @@ import { AuthProvider } from "./components/AuthContext";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "./App.css";
 
+
 function App() {
   return (
     <AuthProvider>
@@ -41,7 +42,10 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
+
+    
   );
 }
+
 
 export default App;

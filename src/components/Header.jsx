@@ -13,7 +13,14 @@ export default function Header() {
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark px-4">
-      <Link className="navbar-brand" to="/">TaskMaster</Link>
+      <Link className="navbar-brand d-flex align-items-center gap-2" to="/">
+        <img
+          src={`${process.env.PUBLIC_URL}/favicon.jpg`} // ✅ Correct way to reference public folder image
+          alt="App Logo"
+          style={{ width: '35px', height: '35px', objectFit: 'contain' }}
+        />
+        <span>TaskMaster</span>
+      </Link>
 
       <div className="ms-auto d-flex align-items-center gap-3">
         <Link to="/" className="btn btn-outline-light btn-sm">Home</Link>

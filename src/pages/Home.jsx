@@ -72,8 +72,11 @@ export default function Home() {
       </section>
 
       <footer className="footer text-center mt-5 py-3">
-        <small className="text-muted">Made with ❤️ in React.</small>
-      </footer>
+  <small className="text-muted">
+    &copy; {new Date().getFullYear()} TaskMaster. All rights reserved.
+  </small>
+</footer>
+
     </main>
   );
 }

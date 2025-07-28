@@ -3,6 +3,8 @@ import axios from "axios";
 import { useAuth } from "../components/AuthContext";
 import SpeechSynthesis from "./SpeechSynthesis";
 import "./Todo.css";
+import { Modal } from "react-bootstrap";
+
 import {
   Container,
   Row,
@@ -21,18 +23,21 @@ const initialTask = {
   reminder: false,
   notes: "",
   priority: "Medium Priority",
-  alarmType: "alarmSong",
+  alarmType: "aiVoice",
 };
 
 const Todo = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [task, setTask] = useState(initialTask);
   const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("date");
   const [speechText, setSpeechText] = useState("");
-  const audioRef = useRef(null);
   const tasksRef = useRef(tasks);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
+
+  
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -47,39 +52,89 @@ const Todo = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
+ useEffect(() => {
+  // Ask notification permission once
+  if (Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
 
-      for (const t of tasksRef.current) {
-        if (!t.reminder || t.played || !t.dueDateTime) continue;
-        const taskTime = new Date(t.dueDateTime);
+  const interval = setInterval(() => {
+    const now = new Date();
 
-        if (now >= taskTime && now <= new Date(taskTime.getTime() + 60000)) {
-          if (t.alarmType === "alarmSong" && profile?.alarmSong) {
-            if (audioRef.current) audioRef.current.pause();
-            audioRef.current = new Audio(`http://localhost:5000/profile/${user.email}/alarmSong`);
-            audioRef.current.play().catch(() => console.warn("Audio play blocked"));
-          } else if (t.alarmType === "aiVoice") {
-            setSpeechText(`Reminder: You have a task titled ${t.title} that is running.`);
-          }
+    for (const t of tasksRef.current) {
+      if (t.played || !t.dueDateTime) continue;
 
-          axios.put(`http://localhost:5000/tasks/${t.id}`, { played: true }).catch(console.error);
+      const taskTime = new Date(t.dueDateTime);
 
-          setTasks((prev) =>
-            prev.map((tsk) => (tsk.id === t.id ? { ...tsk, played: true } : tsk))
-          );
+      if (now >= taskTime && now <= new Date(taskTime.getTime() + 60000)) {
+        const msg = `Reminder: You have a task titled "${t.title}" that is running.`;
 
-          break;
+        // ✅ In-app popup
+        setPopupMessage(msg);
+        setShowPopup(true);
+
+        // ✅ System-level notification
+        if (Notification.permission === "granted") {
+          new Notification("Task Reminder", {
+            body: msg,
+            icon: "/icon.png", // optional
+          });
         }
-      }
-    }, 30000);
+        if (Notification.permission === "granted") {
+  new Notification("Task Reminder", {
+    body: `Reminder: You have a task titled "${t.title}" that is running.`,
+    icon: "/logo192.png", // optional
+  });
+}
 
-    return () => {
-      clearInterval(interval);
-      if (audioRef.current) audioRef.current.pause();
-    };
-  }, [profile, user]);
+
+        // ✅ AI Voice only if reminder is enabled
+        if (parseInt(t.reminder) === 1) {
+          setSpeechText(msg);
+        }
+
+        // ✅ Mark task as played
+        axios.put(`http://localhost:5000/tasks/${t.id}`, { played: true }).catch(console.error);
+        setTasks((prev) =>
+          prev.map((tsk) => (tsk.id === t.id ? { ...tsk, played: true } : tsk))
+        );
+
+        break;
+      }
+    }
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [user]);
+
+useEffect(() => {
+  if ("Notification" in window && Notification.permission !== "granted") {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        console.log("✅ Notifications permission granted");
+      } else {
+        console.log("❌ Notifications permission denied");
+      }
+    });
+  }
+}, []);
+
+
+useEffect(() => {
+  if (Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
+}, []);
+
+
+useEffect(() => {
+  if (speechText) {
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    window.speechSynthesis.speak(utterance);
+  }
+}, [speechText]);
+
+
 
   const onSpeechEnd = () => setSpeechText("");
 
@@ -223,7 +278,6 @@ const Todo = () => {
                           value={task.alarmType}
                           onChange={(e) => setTask({ ...task, alarmType: e.target.value })}
                         >
-                          <option value="alarmSong">Alarm Song</option>
                           <option value="aiVoice">AI Voice</option>
                         </Form.Select>
                       </Form.Group>
@@ -276,9 +330,7 @@ const Todo = () => {
                   <Card.Text>
                     <strong>Due:</strong> {t.dueDateTime ? new Date(t.dueDateTime).toLocaleString() : "No due date"}
                     <br />
-                    <strong>Reminder:</strong> {t.reminder ? "Yes" : "No"}
-                    <br />
-                    <strong>Alarm Type:</strong> {t.alarmType === "alarmSong" ? "Alarm Song" : "AI Voice"}
+                    <strong>Reminder:</strong> {parseInt(t.reminder) === 1 ? "Yes" : "No"}
                     <br />
                     <strong>Notes:</strong> {t.notes}
                   </Card.Text>
@@ -292,6 +344,21 @@ const Todo = () => {
         </Row>
 
         {speechText && <SpeechSynthesis text={speechText} onEnd={onSpeechEnd} />}
+
+        <Modal show={showPopup} onHide={() => setShowPopup(false)} centered>
+  <Modal.Header closeButton>
+    <Modal.Title>Task Reminder</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <p dangerouslySetInnerHTML={{ __html: popupMessage.replace(/"(.*?)"/g, '<strong>"$1"</strong>') }} />
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowPopup(false)}>
+      Close
+    </Button>
+  </Modal.Footer>
+</Modal>
+
       </Container>
     </div>
   );
