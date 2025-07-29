@@ -40,10 +40,13 @@ db.connect((err) => {
 });
 
 // MongoDB connection
-mongoose
-  .connect("mongodb://localhost:27017/taskmaster")
+const mongoURI = "mongodb+srv://taskuser:R4BKoH7duqE0o2M9@cluster0.hber7.mongodb.net/taskmaster?retryWrites=true&w=majority";
+
+mongoose.connect(mongoURI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB error:", err));
+
+
 
 const profileSchema = new mongoose.Schema({
   email: String,
@@ -101,12 +104,22 @@ app.post("/login", (req, res) => {
 // GET user (name,email) from MySQL for frontend
 app.get("/user/:email", (req, res) => {
   const email = req.params.email;
-  db.query("SELECT name, email FROM users WHERE email = ?", [email], (err, results) => {
-    if (err) return res.status(500).json({ error: "Server error" });
-    if (results.length === 0) return res.status(404).json({ error: "User not found" });
-    res.json(results[0]);
-  });
+
+  db.query(
+    "SELECT name, email FROM users WHERE email = ?",
+    [email],
+    (err, results) => {
+      if (err) {
+        console.error("MySQL error:", err); // 👈 Add this
+        return res.status(500).json({ error: "Server error", details: err.message }); // 👈 Show details
+      }
+      if (results.length === 0)
+        return res.status(404).json({ error: "User not found" });
+      res.json(results[0]);
+    }
+  );
 });
+
 
 // Save profile (get name from MySQL, store address, mobile, image in MongoDB)
 app.post("/profile", upload.single("profileImage"), async (req, res) => {
@@ -159,6 +172,8 @@ app.get("/profile/:email", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
 
 // Insert task
 app.post("/tasks", (req, res) => {
