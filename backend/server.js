@@ -4,6 +4,8 @@ const mysql = require("mysql2");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const bodyParser = require("body-parser");
+require("dotenv").config();
+
 
 const app = express();
 const PORT = 5000;
@@ -15,23 +17,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// MySQL connection
-// const db = mysql.createConnection({
-//   host: "localhost",
-//   user: "root",
-//   password: "24YashL03@",
-//   database: "taskmaster_db",
-// });
+
 const db = mysql.createConnection({
-  host: 'mainline.proxy.rlwy.net',
-  user: 'root',
-  password: 'MsltVKvCXNNFAwUETUyAJNxoLVhzIKWJ',
-  database: 'railway',
-  port: 52557,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  host: process.env.MYSQL_HOST,
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
+  port: process.env.MYSQL_PORT || 52557,
 });
+
 
 
 db.connect((err) => {
@@ -40,11 +34,14 @@ db.connect((err) => {
 });
 
 // MongoDB connection
-const mongoURI = "mongodb+srv://taskuser:R4BKoH7duqE0o2M9@cluster0.hber7.mongodb.net/taskmaster?retryWrites=true&w=majority";
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("✅ MongoDB connected");
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+  });
 
-mongoose.connect(mongoURI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB error:", err));
 
 
 
