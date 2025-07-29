@@ -16,12 +16,21 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // MySQL connection
+// const db = mysql.createConnection({
+//   host: "localhost",
+//   user: "root",
+//   password: "24YashL03@",
+//   database: "taskmaster_db",
+// });
 const db = mysql.createConnection({
-  host: "maglev.proxy.rlwy.net",
-  port: 33371,
-  user: "root",
-  password: "kFQRzKdguzcVuBNFlVPOaADYvyFepnfs",
-  database: "railway",
+  host: 'mainline.proxy.rlwy.net',
+  user: 'root',
+  password: 'MsltVKvCXNNFAwUETUyAJNxoLVhzIKWJ',
+  database: 'railway',
+  port: 52557,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 
@@ -158,11 +167,24 @@ app.post("/tasks", (req, res) => {
     reminder, priority, played, alarmType,
   } = req.body;
 
+  // Debug log
+  console.log("Received task:", req.body);
+
+  const playedInt = played ? 1 : 0;
+  const reminderInt = reminder ? 1 : 0;
+
   const sql = `INSERT INTO tasks (user_email, title, category, dueDateTime, notes, reminder, priority, played, alarmType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-  db.query(sql, [user_email, title, category, dueDateTime, notes, reminder, priority, played, alarmType], (err) => {
-    if (err) return res.status(500).json({ error: "Failed to add task" });
-    res.json({ message: "✅ Task added successfully" });
-  });
+  db.query(
+    sql,
+    [user_email, title, category, dueDateTime, notes, reminderInt, priority, playedInt, alarmType],
+    (err, results) => {
+      if (err) {
+        console.error("MySQL error inserting task:", err);  // Full error visible
+        return res.status(500).json({ error: "Failed to add task", details: err.message });
+      }
+      res.json({ message: "✅ Task added successfully" });
+    }
+  );
 });
 
 // Update task
