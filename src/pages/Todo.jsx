@@ -36,7 +36,7 @@ const Todo = () => {
   const tasksRef = useRef(tasks);
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
-
+  const API = process.env.REACT_APP_API_URL;
   
 
   useEffect(() => {
@@ -46,7 +46,7 @@ const Todo = () => {
   useEffect(() => {
     if (user) {
       axios
-        .get(`http://localhost:5000/tasks?email=${user.email}`)
+        .get(`${API}/tasks?email=${user.email}`)
         .then((res) => setTasks(res.data))
         .catch((err) => console.error("Error loading tasks:", err));
     }
@@ -94,7 +94,7 @@ const Todo = () => {
         }
 
         // ✅ Mark task as played
-        axios.put(`http://localhost:5000/tasks/${t.id}`, { played: true }).catch(console.error);
+        axios.put(`${API}/tasks/${t.id}`, { played: true }).catch(console.error);
         setTasks((prev) =>
           prev.map((tsk) => (tsk.id === t.id ? { ...tsk, played: true } : tsk))
         );
@@ -147,8 +147,8 @@ useEffect(() => {
       played: false,
     };
     axios
-      .post("http://localhost:5000/tasks", newTask)
-      .then(() => axios.get(`http://localhost:5000/tasks?email=${user.email}`))
+      .post(`${API}/tasks`, newTask)
+      .then(() => axios.get(`${API}/tasks?email=${user.email}`))
       .then((res) => {
         setTasks(res.data);
         setTask(initialTask);
@@ -158,7 +158,7 @@ useEffect(() => {
 
   const handleDelete = (id) => {
     axios
-      .delete(`http://localhost:5000/tasks/${id}`)
+      .delete(`${API}/tasks/${id}`)
       .then(() => setTasks((prev) => prev.filter((t) => t.id !== id)))
       .catch((err) => console.error("Error deleting task:", err));
   };

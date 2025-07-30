@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
       setProfile(null);
     }
   }, [user]);
+  const API = process.env.REACT_APP_API_URL;
 
   // Persist user session
   useEffect(() => {
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch("http://localhost:5000/login", {
+      const response = await fetch(`${API}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,7 +66,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (username, email, password) => {
     try {
-      const response = await fetch("http://localhost:5000/signup", {
+      const response = await fetch(`${API}/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
