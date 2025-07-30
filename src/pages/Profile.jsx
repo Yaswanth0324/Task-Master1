@@ -4,6 +4,10 @@ import { useAuth } from "../components/AuthContext";
 import { Container, Card, Form, Button } from "react-bootstrap";
 import "./Profile.css";
 
+
+const API = process.env.REACT_APP_API_URL;
+axios.post(`${API}/signup`, data);
+
 const Profile = () => {
   const { user } = useAuth();
   const email = user?.email || "";

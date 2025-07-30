@@ -231,6 +231,10 @@ app.delete("/tasks/:id", (req, res) => {
     res.json({ message: "✅ Task deleted successfully" });
   });
 });
+app.get('/', (req, res) => {
+  res.send('TaskMaster Backend is running!');
+});
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
