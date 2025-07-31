@@ -3,6 +3,7 @@ import axios from "axios";
 import { useAuth } from "../components/AuthContext";
 import { Container, Card, Form, Button } from "react-bootstrap";
 import "./Profile.css";
+const API = process.env.REACT_APP_API_URL;
 
 
 const Profile = () => {
@@ -24,7 +25,7 @@ const Profile = () => {
   useEffect(() => {
     if (!email) return;
 
-    axios.get(`http://localhost:5000/user/${email}`)
+    axios.get(`${API}/user/${email}`)
       .then((res) => {
         const userData = res.data;
         if (userData && (userData.name || userData.Name)) {
@@ -44,7 +45,7 @@ const Profile = () => {
     if (!email) return;
 
     setLoading(true);
-    axios.get(`http://localhost:5000/profile/${email}`)
+    axios.get(`${API}/profile/${email}`)
       .then((res) => {
         setMobile(res.data.mobile || "");
         setAddress(res.data.address || "");
@@ -98,10 +99,10 @@ const Profile = () => {
       formData.append("address", address);
       if (profileImage) formData.append("profileImage", profileImage);
 
-      const res = await axios.post("http://localhost:5000/profile", formData);
+      const res = await axios.post(`${API}/profile`, formData);
       setMessage(res.data.message || "Profile saved!");
 
-      const response = await axios.get(`http://localhost:5000/profile/${email}`);
+      const response = await axios.get(`${API}/profile/${email}`);
       setMobile(response.data.mobile || "");
       setAddress(response.data.address || "");
 
