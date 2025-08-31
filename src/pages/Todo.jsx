@@ -139,22 +139,29 @@ useEffect(() => {
   const onSpeechEnd = () => setSpeechText("");
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    const newTask = {
-      ...task,
-      user_email: user.email,
-      reminder: !!task.reminder,
-      played: false,
-    };
-    axios
-      .post(`${API}/tasks`, newTask)
-      .then(() => axios.get(`${API}/tasks?email=${user.email}`))
-      .then((res) => {
-        setTasks(res.data);
-        setTask(initialTask);
-      })
-      .catch((err) => console.error("❌ Error adding task:", err.message));
+  e.preventDefault();
+
+  const formattedDue = task.dueDateTime
+    ? new Date(task.dueDateTime).toISOString().slice(0, 19).replace("T", " ")
+    : null;
+
+  const newTask = {
+    ...task,
+    user_email: user.email,
+    dueDateTime: formattedDue,  // ✅ send ISO format
+    reminder: !!task.reminder,
+    played: false,
   };
+
+  axios.post(`${API}/tasks`, newTask)
+    .then(() => axios.get(`${API}/tasks?email=${user.email}`))
+    .then((res) => {
+      setTasks(res.data);
+      setTask(initialTask);
+    })
+    .catch((err) => console.error("❌ Error adding task:", err.message));
+};
+
 
   const handleDelete = (id) => {
     axios
